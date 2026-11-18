@@ -234,6 +234,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'DRUPAL_HASH_SALT', secretRef: 'drupal-hash-salt' }
             { name: 'DRUPAL_TRUSTED_HOSTS', value: trustedHosts }
             { name: 'DRUPAL_FILE_PRIVATE_PATH', value: '/var/www/html/private' }
+            { name: 'DRUPAL_CRON_INTERVAL', value: '0' }
             { name: 'DRUPAL_ENVIRONMENT', value: environmentName }
             // Pre-deploy dumps land on the private share, so they outlive the
             // replica that took them.

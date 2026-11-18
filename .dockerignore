@@ -57,8 +57,7 @@ private/
 files/
 
 # ── Local settings and secrets ──
-.env
-.env.*
+.env*
 *.pem
 *.key
 web/sites/default/settings.local.php
@@ -115,3 +114,16 @@ Thumbs.db
 # ── Agent files ──
 .claude/
 CLAUDE.md
+
+# Operational evidence, generated output, and local caches
+build/
+.audit/
+cutovers/
+rehearsals/
+__pycache__/
+*.db
+.venv/
+.ruff_cache/
+
+**/*.db
+**/__pycache__/

@@ -12,25 +12,27 @@
   scripts/test.sh with the integration flag, which brings up the real container against a
   real MySQL 8 and checks that Drupal serves.
 
-  PHPUnit 9.6 schema: that is the version drupal/core-dev pins for Drupal 10, and
+  PHPUnit 11.5 schema: that is the version drupal/core-dev pins for Drupal 11, and
   matching it keeps the test tooling identical to what the site's own tests would
   use.
 -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
          bootstrap="tests/php/bootstrap.php"
          colors="true"
          failOnWarning="true"
          failOnRisky="true"
-         cacheResultFile=".phpunit.cache/result">
+         cacheDirectory=".phpunit.cache"
+         failOnDeprecation="true"
+         failOnPhpunitDeprecation="true">
   <testsuites>
     <testsuite name="unit">
       <directory>tests/php</directory>
     </testsuite>
   </testsuites>
-  <coverage>
+  <source>
     <include>
       <directory suffix=".php">docker/drupal</directory>
     </include>
-  </coverage>
+  </source>
 </phpunit>

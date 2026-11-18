@@ -42,3 +42,5 @@ is a reason nobody reads before deleting the code.
 
 [Production learnings](production-learnings.md) is the index tying the two
 together: one row per decision, pointing at the file and the test.
+
+- [Starting a new project](new-project.md) — baseline, project adaptation, and validation.

@@ -32,9 +32,7 @@ final class FailClosedTest extends TestCase {
     ];
   }
 
-  /**
-   * @dataProvider requiredVariables
-   */
+  #[\PHPUnit\Framework\Attributes\DataProvider('requiredVariables')]
   public function testOverlayRefusesToLoadWithoutTheVariable(string $missing): void {
     [$status, $output] = $this->loadInSubprocess($missing);
 

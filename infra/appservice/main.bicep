@@ -52,7 +52,7 @@ param mysqlAdminLogin string = 'drupaladmin'
 param mysqlSkuName string = 'Standard_B1ms'
 param mysqlSkuTier string = 'Burstable'
 param mysqlStorageSizeGB int = 32
-param mysqlVersion string = '8.0.21'
+param mysqlVersion string = '8.4'
 param mysqlCollation string = 'utf8mb4_general_ci'
 param mysqlBackupRetentionDays int = 7
 
@@ -82,7 +82,11 @@ param logRetentionDays int = 30
 param deployEmail bool = true
 
 
-@description('Cron expression (UTC) for Drupal cron. On App Service this drives a scheduled GitHub workflow rather than a platform job — see docs/operations.md.')
+@description('In-container cron interval in seconds: 0 (external scheduler) or at least 300.')
+@minValue(0)
+param cronIntervalSeconds int = 3600
+
+@description('Cron expression for the optional GitHub scheduler; keep the workflow schedule in sync manually.')
 param cronExpression string = '*/15 * * * *'
 
 // ---------------------------------------------------------------------------
@@ -212,6 +216,7 @@ module appservice '../modules/appservice.bicep' = {
   name: 'appservice'
   params: {
     location: location
+    cronIntervalSeconds: cronIntervalSeconds
     planName: planName
     appName: appName
     skuName: appServiceSku

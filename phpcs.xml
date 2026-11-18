@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<ruleset name="Template PHP">
+  <description>PHP syntax and whitespace checks for settings and tests.</description>
+  <file>tests/php</file>
+  <file>docker/drupal/settings.azure.php</file>
+  <file>web/sites/default/settings.php</file>
+  <rule ref="Generic.PHP.Syntax"/>
+  <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
+  <rule ref="Squiz.WhiteSpace.SuperfluousWhitespace"/>
+</ruleset>

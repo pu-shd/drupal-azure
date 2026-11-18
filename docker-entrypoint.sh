@@ -65,6 +65,8 @@ source "${LIB_DIR}/entrypoint-lib.sh"
 
 die() { printf '[entrypoint] ERROR: %s\n' "$*" >&2; exit 1; }
 
+/usr/local/bin/drupal-cron-loop --check
+
 APP_ROOT="${APP_ROOT:-/var/www/html}"
 DRUSH="${APP_ROOT}/vendor/bin/drush"
 CONTAINER_VERSION="${CONTAINER_VERSION:-unknown}"

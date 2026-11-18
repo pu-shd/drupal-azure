@@ -394,6 +394,8 @@ if ($aca_mail_url = getenv('AZURE_LOGIC_APP_MAIL_URL')) {
 // ---------------------------------------------------------------------------
 // Local overrides, last so they win.
 // ---------------------------------------------------------------------------
+/** @var string $app_root Drupal's application root, supplied by settings.php. */
+/** @var string $site_path Drupal's site path, supplied by settings.php. */
 if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
   include $app_root . '/' . $site_path . '/settings.local.php';
 }

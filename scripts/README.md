@@ -59,3 +59,13 @@ Each script's header explains what it does and, where the behaviour is
 non-obvious, what failure it exists to prevent. `verify-site.sh`,
 `composer-retry.sh` and `../docker/entrypoint-lib.sh` are the ones most worth
 reading before changing.
+
+## Container checks and database probes
+
+`./scripts/test-container.sh` builds the development image and `Dockerfile.test`,
+then runs unit and shell suites, PHP formatting checks, and PHPStan.
+`./scripts/test.sh --integration` runs the separate real-database image tests.
+
+Run `bash scripts/db-probe.sh --drupal` inside an app container to verify the
+configured database login, PDO, dump and bootstrap paths before and after an
+engine or authentication change. It uses `DRUPAL_DB_*` and defaults to verified TLS.

@@ -210,7 +210,7 @@ architecture, no — and the reasons are structural rather than aesthetic:
 | Deploy-time schema work | Nothing | Entrypoint, once per image, under a lock, after a backup |
 
 Basing on `drupal:10-fpm` and adding nginx and supervisor is possible but strictly
-more work than starting from `php:8.3-fpm-bookworm`, because you would be undoing
+more work than starting from `php:8.4.27-fpm-bookworm`, because you would be undoing
 the official image's entrypoint and Apache assumptions first.
 
 ---

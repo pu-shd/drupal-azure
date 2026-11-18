@@ -19,8 +19,7 @@
 /web/libraries/
 
 # Environment and secrets
-.env
-.env.*
+.env*
 *.pem
 *.key
 
@@ -61,3 +60,13 @@ temp/
 /import/
 /backups/
 /snapshots/
+
+# Operational evidence, generated output, and local caches
+build/
+.audit/
+cutovers/
+rehearsals/
+__pycache__/
+*.db
+.venv/
+.ruff_cache/

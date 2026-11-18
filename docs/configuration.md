@@ -47,7 +47,7 @@ password, see [Secrets](secrets.md#reading-a-secret-you-actually-need).
 | `MIN_REPLICAS` / `MAX_REPLICAS` | `1` / `3` | Container Apps only |
 | `MYSQL_SKU_NAME` | `Standard_B1ms` | |
 | `MYSQL_STORAGE_GB` | `32` | Auto-grow is on, so this is a floor not a ceiling |
-| `MYSQL_VERSION` | `8.0.21` | Pinned deliberately — see [database.md](database.md#engine-version-pinned) |
+| `MYSQL_VERSION` | `8.4` | Pinned deliberately — see [database.md](database.md#engine-version-pinned) |
 | `MYSQL_COLLATION` | `utf8mb4_general_ci` | **Must match your data.** Run `./scripts/migrate.sh --audit` first |
 | `PUBLIC_SHARE_QUOTA_GB` / `PRIVATE_SHARE_QUOTA_GB` | `100` / `100` | A ceiling, not an allocation — you pay for what is used |
 | `LOG_RETENTION_DAYS` | `30` | 30 is the free allowance |
@@ -140,3 +140,13 @@ asserts all four, so a mismatch fails CI rather than production.
 - **[Secrets](secrets.md)** — the two values that are *not* here, and why.
 - **[Database settings](database.md)** — what the database values actually do.
 - **[Operations](operations.md)** — changing these on a running deployment.
+
+## Background cron
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DRUPAL_CRON_INTERVAL` | `3600` on App Service; `0` elsewhere | Seconds between sequential runs. Set to `0` when another scheduler owns cron; enabled values must be at least `300` |
+| `DRUPAL_CRON_DELAY` | `120` | Seconds before the first cron run |
+
+The App Service parameter file reads `DRUPAL_CRON_INTERVAL` when deploying.
+Container Apps uses its scheduled Job and disables the in-container loop.

@@ -72,7 +72,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4.27'
           tools: composer:v2
           extensions: gd, pdo_mysql, zip, intl, opcache, apcu
 
@@ -120,3 +120,11 @@ jobs:
       # production.
       - name: Bring up the stack and assert Drupal serves
         run: ./scripts/test.sh --integration
+
+  container-tests:
+    name: Container unit, shell, format and type checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the test image
+        run: ./scripts/test-container.sh
