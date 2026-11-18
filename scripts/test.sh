@@ -71,6 +71,13 @@ if [[ "$RUN_SHELL" == "yes" ]]; then
     fail "shell suite"
   fi
 
+  step "Template regression tests"
+  if bash tests/shell/template.sh; then
+    pass "template regressions"
+  else
+    fail "template regressions"
+  fi
+
   step "Secret-handling tests"
   if bash tests/shell/secrets.sh; then
     pass "secret handling"
@@ -179,7 +186,7 @@ if [[ "$RUN_INTEGRATION" == "yes" ]]; then
   # perfectly and then cannot connect over HTTP is exactly the failure shape.
   # -----------------------------------------------------------------------
   info "Checking the site serves over HTTP"
-  if ./scripts/verify-site.sh "http://localhost:8080"; then
+  if ./scripts/verify-site.sh "http://localhost:${DRUPAL_HTTP_PORT:-8080}"; then
     pass "Drupal renders through nginx and php-fpm (so getenv() works in a web request)"
   else
     fail "the site does not render over HTTP"
@@ -225,6 +232,13 @@ if [[ "$RUN_INTEGRATION" == "yes" ]]; then
     pass "entrypoint guards against MySQL 8"
   else
     fail "entrypoint guards against MySQL 8"
+  fi
+
+  info "Probing all database client paths"
+  if "${COMPOSE[@]}" exec -T web bash scripts/db-probe.sh --drupal; then
+    pass "CLI, PDO, schema dump and Drupal bootstrap"
+  else
+    fail "database client probe"
   fi
 
   # -----------------------------------------------------------------------

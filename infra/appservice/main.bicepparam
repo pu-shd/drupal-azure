@@ -22,7 +22,7 @@ param mysqlAdminLogin = readEnvironmentVariable('MYSQL_ADMIN_LOGIN', 'drupaladmi
 param mysqlSkuName = readEnvironmentVariable('MYSQL_SKU_NAME', 'Standard_B1ms')
 param mysqlSkuTier = readEnvironmentVariable('MYSQL_SKU_TIER', 'Burstable')
 param mysqlStorageSizeGB = int(readEnvironmentVariable('MYSQL_STORAGE_GB', '32'))
-param mysqlVersion = readEnvironmentVariable('MYSQL_VERSION', '8.0.21')
+param mysqlVersion = readEnvironmentVariable('MYSQL_VERSION', '8.4')
 param mysqlCollation = readEnvironmentVariable('MYSQL_COLLATION', 'utf8mb4_general_ci')
 
 // B1: one instance, Always On, ~$13/month. S1 adds deployment slots (a warm
@@ -40,3 +40,5 @@ param privateShareQuotaGB = int(readEnvironmentVariable('PRIVATE_SHARE_QUOTA_GB'
 param logRetentionDays = int(readEnvironmentVariable('LOG_RETENTION_DAYS', '30'))
 param cronExpression = readEnvironmentVariable('DRUPAL_CRON_EXPRESSION', '*/15 * * * *')
 param deployEmail = bool(readEnvironmentVariable('DEPLOY_EMAIL', 'true'))
+
+param cronIntervalSeconds = int(readEnvironmentVariable('DRUPAL_CRON_INTERVAL', '3600'))

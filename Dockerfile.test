@@ -1,0 +1,9 @@
+# Build Dockerfile.dev as drupal-azure-dev:8.4.27 first (scripts/test-container.sh).
+FROM drupal-azure-dev:8.4.27
+RUN apt-get update && apt-get install -y --no-install-recommends python3 shellcheck \
+    && rm -rf /var/lib/apt/lists/*
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --no-progress --prefer-dist
+COPY . .
+RUN composer install --no-interaction --no-progress --prefer-dist
+CMD ["bash", "scripts/test-container-inner.sh"]

@@ -137,9 +137,9 @@ else
 fi
 
 step "Verifying"
-if ./scripts/verify-site.sh "http://localhost:8080"; then
+if ./scripts/verify-site.sh "http://localhost:${DRUPAL_HTTP_PORT:-8080}"; then
   echo ""
-  printf '%s%s  http://localhost:8080%s\n' "$GREEN" "$BOLD" "$NC"
+  printf '%s%s  http://localhost:${DRUPAL_HTTP_PORT:-8080}%s\n' "$GREEN" "$BOLD" "$NC"
   printf '  Database on 127.0.0.1:13306 (drupal / drupal)\n\n'
   printf '  drush:  %s exec web vendor/bin/drush <command>\n' "${COMPOSE[*]}"
   printf '  logs:   %s logs -f web\n' "${COMPOSE[*]}"

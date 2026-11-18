@@ -1,6 +1,10 @@
 // ---------------------------------------------------------------------------
 // App Service Plan + Linux container Web App.
 // ---------------------------------------------------------------------------
+@description('Seconds between sequential cron runs. 0 disables; otherwise at least 300.')
+@minValue(0)
+param cronIntervalSeconds int = 3600
+
 param location string
 param planName string
 param appName string
@@ -189,6 +193,7 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'DRUPAL_TRUSTED_HOSTS', value: trustedHosts }
         { name: 'DRUPAL_FILE_PRIVATE_PATH', value: '/var/www/html/private' }
         { name: 'DRUPAL_ENVIRONMENT', value: environmentName }
+        { name: 'DRUPAL_CRON_INTERVAL', value: string(cronIntervalSeconds) }
         // Both on /home, which persists across restarts and deploys. On Container
         // Apps these go to a mounted Azure Files share instead; the entrypoint
         // takes the paths from the environment either way.

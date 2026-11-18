@@ -22,9 +22,9 @@ nothing here has been tested against — and the CLI/ARM accepted values are
 specific strings, not "8.0". The gap between 8.0 and 8.4 includes changes to
 default authentication and to reserved words that a Drupal site notices.
 
-Change this deliberately, and rehearse it. See docs/database.md.
+Fresh projects provision MySQL 8.4 directly. See docs/database.md.
 ''')
-param mysqlVersion string = '8.0.21'
+param mysqlVersion string = '8.4'
 
 @description('Character set for the database. utf8mb4 is required by Drupal; utf8 (3-byte) breaks on any 4-byte character, i.e. emoji.')
 param charset string = 'utf8mb4'
@@ -68,7 +68,7 @@ resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
   }
 }
 
-resource mysql 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
+resource mysql 'Microsoft.DBforMySQL/flexibleServers@2024-12-30' = {
   name: mysqlName
   location: location
   sku: {

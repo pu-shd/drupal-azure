@@ -71,7 +71,7 @@ printf '%sVerifying %s%s\n' "$BLUE" "$IMAGE" "$NC"
 
 # ── 1. PHP version parity with the Dockerfile ───────────────────────────────
 want_php="$(grep -m1 '^ARG PHP_VERSION=' Dockerfile | cut -d= -f2)"
-got_php="$(run 'php -r "echo PHP_MAJOR_VERSION.\".\".PHP_MINOR_VERSION;"')"
+got_php="$(run 'php -r "echo PHP_VERSION;"')"
 if [[ -n "$want_php" && "$got_php" == "$want_php" ]]; then
   pass "PHP $got_php matches the Dockerfile"
 else

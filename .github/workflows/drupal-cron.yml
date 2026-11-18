@@ -1,23 +1,6 @@
-###############################################################################
-# Drupal cron — App Service only.
-#
-# Drupal's own automated_cron is disabled in the settings overlay, because it
-# fires at the end of a web request: with no traffic it never runs, and with
-# traffic it lands on whichever instance served the request. Search indexing,
-# queue processing and log pruning then stop silently, which is the worst way for
-# a maintenance task to fail.
-#
-# On Container Apps this is a scheduled Container Apps Job on the same image
-# (infra/modules/jobs.bicep) — strictly better, because it is a platform job with
-# an execution history and it does not involve CI at all. App Service has no
-# equivalent for Linux containers, so this workflow drives it instead.
-#
-# Note what it does NOT do: it does not call a public /cron/<key> URL. That would
-# put the site's availability, the ingress allow-list and a long-lived cron key on
-# the critical path for a task that has no reason to be reachable from outside.
-# Kudu runs it inside the container, authenticated by Entra RBAC, and returns the
-# exit code — so a failed cron is a red run rather than silence.
-###############################################################################
+# Optional App Service cron scheduler. Set DRUPAL_CRON_INTERVAL=0 and
+# AZURE_CRON_SCHEDULER=github to choose this instead of the supervised loop.
+# Container Apps uses its scheduled Job. This workflow runs inside the app via Kudu.
 
 name: Drupal cron
 
@@ -47,7 +30,7 @@ jobs:
     # everyone to ignore a red cron, exactly the signal that matters when cron
     # really does break. On Container Apps a platform Job owns cron instead, so
     # this is skipped there too.
-    if: vars.AZURE_APP_NAME != '' && vars.AZURE_PLATFORM != 'containerapps'
+    if: vars.AZURE_APP_NAME != '' && vars.AZURE_PLATFORM != 'containerapps' && vars.AZURE_CRON_SCHEDULER == 'github'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

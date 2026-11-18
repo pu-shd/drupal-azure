@@ -52,7 +52,7 @@ param mysqlAdminLogin string = 'drupaladmin'
 param mysqlSkuName string = 'Standard_B1ms'
 param mysqlSkuTier string = 'Burstable'
 param mysqlStorageSizeGB int = 32
-param mysqlVersion string = '8.0.21'
+param mysqlVersion string = '8.4'
 param mysqlCollation string = 'utf8mb4_general_ci'
 param mysqlBackupRetentionDays int = 7
 

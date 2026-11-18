@@ -1,7 +1,7 @@
 ###############################################################################
 # Local development and containerised test stack.
 #
-# The database is mysql:8.0 rather than MariaDB, and the character set and
+# The database is mysql:8.4.7 rather than MariaDB, and the character set and
 # collation are set explicitly. Both are deliberate:
 #
 #   * Production is MySQL 8 on Azure. MariaDB is close but not identical, and the
@@ -17,7 +17,7 @@
 
 services:
   db:
-    image: mysql:8.0
+    image: mysql:8.4.7
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_general_ci
@@ -46,19 +46,19 @@ services:
       - db_data:/var/lib/mysql
     ports:
       # Non-default host port so this can coexist with any other local MySQL.
-      - "13306:3306"
+      - "${DRUPAL_DB_FORWARD_PORT:-13306}:3306"
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.dev
       args:
-        PHP_VERSION: "8.3"
+        PHP_VERSION: "8.4.27"
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "${DRUPAL_HTTP_PORT:-8080}:80"
     volumes:
       - .:/var/www/html
       # A named volume, not a bind mount. vendor/ built inside the container must
@@ -97,6 +97,7 @@ services:
       # The web container in this stack never runs the deploy sequence;
       # scripts/local-dev.sh runs updb/cim explicitly so the output is visible.
       DRUPAL_SKIP_DEPLOY_TASKS: "1"
+      DRUPAL_CRON_INTERVAL: "0"
 
 volumes:
   db_data:

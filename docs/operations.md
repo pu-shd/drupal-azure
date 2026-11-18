@@ -408,3 +408,17 @@ base name fail on a name conflict that mentions nothing about soft delete.
 - **[Configuration](configuration.md)** — every variable, and where it comes from.
 - **[Secrets](secrets.md)** — rotation, and proving it took effect.
 - **[Choosing a platform](choosing-a-platform.md)** — what differs between the two.
+
+## Background cron
+
+App Service runs `scripts/cron-loop.sh` under Supervisor as `www-data`, once an
+hour after a two-minute startup delay. This works behind an IP allowlist or sign-in
+gate without a public cron URL. Runs are sequential; Drupal also takes its cron
+lock. Logs report each exit status without printing exception contents. Watch
+for missing successful runs as well as explicit failures.
+
+Container Apps keeps cron in a scheduled Job and sets the loop interval to zero.
+To use the optional GitHub scheduler on App Service, deploy with
+`DRUPAL_CRON_INTERVAL=0` and set repository variable `AZURE_CRON_SCHEDULER=github`.
+Choose one scheduler. A supervised loop stops when the app is stopped; keep
+App Service Always On enabled and use a platform Job for independent scheduling.

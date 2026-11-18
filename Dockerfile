@@ -20,7 +20,7 @@
 # Bump both this and the CI matrix together — scripts/verify-production-image.sh
 # asserts they agree, because CI testing a different PHP than production runs is
 # how a version bump ships broken.
-ARG PHP_VERSION=8.3
+ARG PHP_VERSION=8.4.27
 
 FROM php:${PHP_VERSION}-fpm-bookworm
 
@@ -49,7 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # PECL extension has not yet cut a compatible release — uploadprogress is the
 # one that reliably lags — and it breaks as an opaque compile error rather than
 # a clear "no version available".
-ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/download/2.9.13/install-php-extensions /usr/local/bin/
 RUN chmod +x /usr/local/bin/install-php-extensions \
     && install-php-extensions \
         gd \
@@ -64,7 +64,7 @@ RUN chmod +x /usr/local/bin/install-php-extensions \
 # ---------------------------------------------------------------------------
 # Composer
 # ---------------------------------------------------------------------------
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.8.12 /usr/bin/composer /usr/local/bin/composer
 
 # ---------------------------------------------------------------------------
 # PHP configuration
@@ -148,6 +148,9 @@ RUN mkdir -p web/sites/default/files private \
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/entrypoint-lib.sh /usr/local/lib/drupal-azure/entrypoint-lib.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+COPY scripts/cron-loop.sh /usr/local/bin/drupal-cron-loop
+RUN chmod +x /usr/local/bin/drupal-cron-loop
 
 EXPOSE 80
 

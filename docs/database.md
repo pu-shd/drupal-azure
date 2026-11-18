@@ -328,18 +328,15 @@ network problem.
 ## Engine version, pinned
 
 ```bicep
-param mysqlVersion string = '8.0.21'
+param mysqlVersion string = '8.4'
 ```
 
 Without an explicit version Azure provisions whatever its current default is, so
 a disaster-recovery rebuild of "the same" infrastructure can land on an engine
 nothing here has been tested against. The accepted values are specific strings —
-a bare `8.0` is rejected — and the provisioned server will report a patch version
-of its own (`8.0.x-azure`); that is expected.
-
-Moving major version is a rehearsed operation, not a parameter change. Restore a
-PITR copy onto the new version, run the site against it, and only then repoint —
-keeping the destructive work and the switch that makes it live as separate steps.
+a bare `8.0` is rejected. New projects provision `8.4` directly, and Azure manages
+the server's patch version. There is no existing template deployment to upgrade.
+Local tests use the pinned `mysql:8.4.7` image.
 
 ---
 
@@ -397,3 +394,20 @@ dependence on a connection staying open the way `GET_LOCK()` would require.
 - **[Configuration](configuration.md)** — every database variable and its default.
 - **[Troubleshooting](troubleshooting.md)** — `ERROR 1267`, "server has gone away",
   "access denied", and the rest, by symptom.
+
+## Database client compatibility
+
+Fresh projects target MySQL 8.4, with `mysql:8.4.7` for local tests. Azure exposes
+the major version; its service manages patch releases.
+No upgrade rehearsal is required to use these defaults. To verify connection
+settings, run `bash scripts/db-probe.sh --drupal` inside the app container. It
+reads `DRUPAL_DB_*` and sends credentials only to that configured host. It checks
+the CLI login, PDO login, a schema-only dump with a completion
+trailer and actual tables, and optionally Drupal bootstrap. Every check must
+report PASS. Errors are redacted from its output. Use the same TLS mode as the
+application and offsite backups.
+
+MySQL 8.4 changes authentication defaults. Prefer `caching_sha2_password` and
+verify all clients, including the MariaDB dump client in the production image.
+A PDO login alone does not verify the backup path. Keep TLS verification enabled
+and verify backups and restores as part of each project's operational testing.

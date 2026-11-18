@@ -42,7 +42,7 @@ jobs:
           # Must match the PHP_VERSION arg in the Dockerfile. Resolving
           # dependencies on a different PHP than production runs produces a lock
           # file that satisfies constraints the runtime does not meet.
-          php-version: '8.3'
+          php-version: '8.4.27'
           tools: composer:v2
           extensions: gd, pdo_mysql, zip, intl, opcache, apcu
 

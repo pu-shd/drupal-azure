@@ -17,8 +17,8 @@
     "require": {
         "composer/installers": "^2.0",
         "drupal/azure_oauth_sso": "^1.0",
-        "drupal/core-composer-scaffold": "^10.6",
-        "drupal/core-recommended": "^10.6",
+        "drupal/core-composer-scaffold": "^11.4",
+        "drupal/core-recommended": "^11.4",
         "drupal/externalauth": "^2.0.3",
         "drupal/genpass": "^2.0 || ^3.0",
         "drupal/mailsystem": "^4.4",
@@ -36,11 +36,12 @@
             "drupal/core-composer-scaffold": true,
             "phpstan/extension-installer": true,
             "dealerdirect/phpcodesniffer-composer-installer": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "symfony/runtime": true
         },
         "sort-packages": true,
         "platform": {
-            "php": "8.3"
+            "php": "8.4.27"
         }
     },
     "extra": {
@@ -80,7 +81,7 @@
         }
     },
     "require-dev": {
-        "drupal/core-dev": "^10.6"
+        "drupal/core-dev": "^11.4"
     },
     "autoload-dev": {
         "psr-4": {

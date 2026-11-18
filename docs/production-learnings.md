@@ -101,62 +101,34 @@ neither.
 
 ---
 
-## Still in flight upstream (as of 2026-08-22)
+## Current template baseline (2026-11-17)
 
-One of the two deployments is mid-migration from **MySQL 5.7 to 8.0** and heading
-for **Drupal 11**. Neither is finished, so the guidance below is provisional — but
-the shape of the work is already clear, and this template is built to accommodate
-it rather than having to be reworked for it.
+The reference applications now lock Drupal 11.4.12 and use PHP 8.4.27 images.
+The template follows that baseline. Its Composer lockfile resolves the shared
+modules for Drupal 11, and CI and Composer's platform setting match the images.
+PHPUnit metadata and configuration use the Drupal 11 test toolchain.
 
-### MySQL 5.7 → 8.0
+Fresh database deployments target MySQL 8.4. The database probe covers the CLI,
+PDO, schema dump and Drupal bootstrap paths so authentication changes are tested
+with the actual container clients. This template has no existing deployments to
+upgrade; new projects provision MySQL 8.4 directly. The
+[database client probe](database.md#database-client-compatibility) remains
+available for verifying connection settings.
 
-Rehearsed repeatedly against a live production source with no risk to it, because
-the destructive work and the switch that makes it live are separate steps: dump,
-restore, normalise and verify against the *new* server while production keeps
-serving from the old one, entirely unmodified. Only if every gate passes does
-anything repoint the application.
+Other shared lessons now implemented here:
 
-Where it currently stands: the data movement works (dump 6s, restore 44s,
-normalise 1s — a ~51-second window), collations come out clean, Drupal bootstraps
-against the target. **The gate is failing on the row manifest**, and the cause is
-cache-table churn rather than lost data — see "A migration gate that failed on
-cache churn" above. The fix in progress is to take the manifest after maintenance
-mode is on and to *measure* which tables are quiescent rather than assume.
+- Cron must run when traffic is quiet and ingress is restricted. App Service uses
+  a supervised sequential loop; Container Apps retains a scheduled Job.
+- PHP request size must exceed file size, Nginx must allow that request, and input
+  parsing needs enough time for a slow upload. Both images share the limits.
+- Request and upstream duration belong in container logs. The template omits
+  client addresses, query strings and auth headers from its access-log format.
+- Audit reports, cutover/rehearsal directories, local databases and build output
+  stay outside Git and the production build context.
 
-What is already settled and reflected here:
-
-- pin `collation` in `settings.php` **before** the move, so the migration does not
-  change collation behaviour and the setting can be verified on the old server
-  first, where it is a no-op;
-- pin the engine version explicitly (`8.0.21`), so a rebuild cannot land on an
-  untested engine;
-- normalise per column, never with a blanket `CONVERT TO`;
-- allow-list every destructive target.
-
-### Drupal 11
-
-Not started on either site. The two things this template already does to make it a
-version bump rather than a project:
-
-- **`config.platform.php` matches the image**, and CI resolves on the same
-  version — so a PHP bump is caught by `verify-production-image.sh` rather than in
-  production. Drupal 11 requires PHP 8.3+, which the image already runs.
-- **`drupal/genpass` is constrained `^2.0 || ^3.0`** — 3.x requires Drupal 11.3+,
-  2.x covers Drupal 10 — so the move is a core bump, not a module hunt.
-
-What is worth adding before attempting it, taken from that deployment's
-pipeline:
-
-- a **deprecation scan over first-party code only**, using
-  `mglaman/phpstan-drupal` and `phpstan/phpstan-deprecation-rules` (both already
-  pulled in by `drupal/core-dev`). Tune the configuration so that *any* output is
-  a real upgrade blocker — that is what makes failing the build on it meaningful,
-  and it needs no `upgrade_status` module and no bootstrapped site;
-- a **kernel-test run against MySQL 8** specifically. `scripts/test.sh
-  --integration` already boots the real stack against MySQL 8 with production's
-  collation, which covers the same ground for the deployment itself.
-
----
+For each new application, add tests for its custom code and run kernel tests
+against MySQL where its behavior depends on the database. Template integration
+tests verify the deployment runtime; they cannot verify application workflows.
 
 ---
 

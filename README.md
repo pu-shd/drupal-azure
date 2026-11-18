@@ -1,6 +1,7 @@
 # Drupal on Azure
 
-A production-ready deployment template for a Composer-based Drupal site on Azure.
+A deployment template for Composer-based Drupal 11.4 on Azure, using PHP 8.4.27
+and MySQL 8.4. Start with [adapting the template](docs/new-project.md).
 
 ```bash
 git clone --recurse-submodules <this repo> && cd drupal-azure

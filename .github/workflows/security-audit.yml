@@ -37,7 +37,7 @@ jobs:
         with:
           # Same PHP as the Dockerfile, so the audit resolves exactly as the
           # runtime does.
-          php-version: '8.3'
+          php-version: '8.4.27'
           tools: composer:v2
 
       - name: Audit

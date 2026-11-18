@@ -1,0 +1,8 @@
+parameters:
+    bootstrapFiles:
+        - tests/php/bootstrap.php
+    level: 5
+    paths:
+        - tests/php
+        - docker/drupal/settings.azure.php
+    tmpDir: /tmp/drupal-azure-phpstan
