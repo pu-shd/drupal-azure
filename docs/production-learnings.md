@@ -104,9 +104,10 @@ neither.
 ## Current template baseline (2026-11-17)
 
 The reference applications now lock Drupal 11.4.12 and use PHP 8.4.27 images.
-The template follows that baseline. Its Composer lockfile resolves the shared
-modules for Drupal 11, and CI and Composer's platform setting match the images.
-PHPUnit metadata and configuration use the Drupal 11 test toolchain.
+The template includes the Drupal 11.4.13 security release. Its Composer lockfile
+resolves the shared modules for Drupal 11, and CI and Composer's platform setting
+match the images. PHPUnit metadata and configuration use the Drupal 11 test
+toolchain.
 
 Fresh database deployments target MySQL 8.4. The database probe covers the CLI,
 PDO, schema dump and Drupal bootstrap paths so authentication changes are tested
