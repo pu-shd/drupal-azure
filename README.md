@@ -23,8 +23,9 @@ fail loudly instead of quietly.
 **Probably not, if** you need multi-site, thousands of concurrent users, or a
 provider-neutral setup. This is deliberately Azure-shaped.
 
-**Note:** logins are **Entra ID only**. There are no working local passwords. See
-**[Authentication](docs/authentication.md)**.
+Public browsing is the default. Drupal sign-in uses Entra ID after setup. The
+optional Azure gate requires Entra sign-in before visitors can reach the site.
+[Authentication](docs/authentication.md)
 
 ## What you get
 
@@ -69,7 +70,7 @@ Also available as an index: [`docs/`](docs/README.md).
 
 | | |
 |---|---|
-| **[Authentication](docs/authentication.md)** | Entra-only logins, and why `genpass` is not optional |
+| **[Authentication](docs/authentication.md)** | Drupal sign-in and the optional site-wide Entra gate |
 | **[Secrets](docs/secrets.md)** | Key Vault, rotation, and proving a rotation took effect |
 | **[GitHub Actions](docs/github-actions.md)** | OIDC federation — no stored credentials |
 | **[Outbound email](docs/email.md)** | Logic App + Office 365, no SMTP password |

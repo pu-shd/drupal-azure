@@ -50,7 +50,20 @@ class TemplateTest(unittest.TestCase):
         self.assertIn('DRUPAL_CRON_INTERVAL', pathlib.Path('infra/modules/appservice.bicep').read_text())
         self.assertIn('DRUPAL_CRON_INTERVAL', pathlib.Path('infra/modules/aca.bicep').read_text())
 
+    def test_site_auth_is_opt_in_and_covers_all_paths(self):
+        for platform, module in (('appservice', 'appservice'), ('containerapps', 'aca')):
+            main = pathlib.Path('infra', platform, 'main.bicep').read_text()
+            hosting = pathlib.Path('infra', 'modules', module + '.bicep').read_text()
+            self.assertIn('param siteAuthClientId string?', main)
+            self.assertIn('siteAuthClientId: siteAuthClientId', main)
+            self.assertIn('enabled: siteAuthEnabled', hosting)
+            self.assertIn("siteAuthEnabled ? 'RedirectToLoginPage' : 'AllowAnonymous'", hosting)
+            self.assertIn('excludedPaths: []', hosting)
+            self.assertIn('allowedApplications: [siteAuthClientId!]', hosting)
+            self.assertIn('secrets/site-auth-client-secret', main)
+
 unittest.main(verbosity=2)
 PY
 bash tests/shell/cron.sh
 bash tests/shell/db-probe.sh
+bash tests/shell/site-auth.sh

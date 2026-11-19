@@ -12,6 +12,7 @@
 #   AZURE_PLATFORM        — appservice (default) | containerapps
 #   DRUPAL_TRUSTED_HOSTS  — comma-separated custom domains
 #   MIN_REPLICAS          — 0 to enable scale-to-zero (default 1)
+#   SITE_AUTH_CLIENT_ID   — gate app registration client ID (explicitly blank disables it)
 #
 # ON SECRETS: this script does NOT prompt for the MySQL password or the Drupal
 # hash salt, and there is no placeholder default for either.
@@ -57,10 +58,14 @@ step()  { echo -e "\n${CYAN}${BOLD}▸ $*${NC}"; }
 
 # ── Parse args ──
 WHAT_IF=false
-if [[ "${1:-}" == "--what-if" ]]; then
-  WHAT_IF=true
-  warn "Running in what-if mode (no changes will be made)"
-fi
+case "${1:-}" in
+  --what-if|--dry-run)
+    WHAT_IF=true
+    warn "Running in what-if mode (no changes will be made)"
+    ;;
+  '') ;;
+  *) err 'Usage: azure-up.sh [--what-if | --dry-run]'; exit 2 ;;
+esac
 
 echo -e "${BOLD}${CYAN}"
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -142,8 +147,43 @@ step "Secrets"
 # Does a vault for this deployment already hold the secrets? If so this is a
 # redeploy and the existing values must be left alone: passing empty parameters
 # makes the template skip the secret resources entirely.
-EXISTING_KV=$(az keyvault list \
-  --query "[?starts_with(name, 'kv-${BASE_NAME}-')].name | [0]" -o tsv 2>/dev/null || true)
+RG_NAME="rg-${BASE_NAME}-${ENVIRONMENT}"
+if ! group_exists=$(az group exists --name "$RG_NAME" -o tsv) || [[ "$group_exists" != true && "$group_exists" != false ]]; then
+  err 'Could not determine whether the deployment resource group exists.'
+  exit 1
+fi
+EXISTING_KV=''
+if [[ "$group_exists" == true ]]; then
+  EXISTING_KV=$(az keyvault list --resource-group "$RG_NAME" \
+    --query "[?starts_with(name, 'kv-${BASE_NAME}-')].name | [0]" -o tsv) || exit 1
+fi
+
+# An omitted setting keeps a gate that this template enabled earlier. Explicit
+# empty input disables it. The app tag stores only the public registration ID.
+if [[ "$group_exists" == true && -z "${SITE_AUTH_CLIENT_ID+x}" ]]; then
+  resource_type='Microsoft.Web/sites'
+  if [[ "$AZURE_PLATFORM" == containerapps ]]; then
+    resource_type='Microsoft.App/containerApps'
+  fi
+  if ! SITE_AUTH_CLIENT_ID=$(az resource list --resource-group "$RG_NAME" --resource-type "$resource_type" \
+    --query "[?tags.siteAuthClientId].tags.siteAuthClientId | [0]" -o tsv); then
+    err 'Could not read the existing Entra gate configuration.'
+    exit 1
+  fi
+fi
+SITE_AUTH_CLIENT_ID="${SITE_AUTH_CLIENT_ID:-}"
+if [[ -n "$SITE_AUTH_CLIENT_ID" && ! "$SITE_AUTH_CLIENT_ID" =~ ^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$ ]]; then
+  err 'SITE_AUTH_CLIENT_ID must be a GUID or empty.'
+  exit 2
+fi
+
+if [[ -n "$SITE_AUTH_CLIENT_ID" ]]; then
+  if [[ -z "$EXISTING_KV" ]] || ! gate_secret=$(az keyvault secret list --vault-name "$EXISTING_KV" \
+    --query "[?name=='site-auth-client-secret'].attributes.enabled | [0]" -o tsv) || [[ "$gate_secret" != true ]]; then
+    err 'Add an enabled site-auth-client-secret to the deployment Key Vault before enabling the gate. See docs/authentication.md.'
+    exit 1
+  fi
+fi
 
 # Secret names come from lib/secrets.sh, so the vault, this script and
 # rotate-secrets.sh cannot drift apart — a mismatch there presents as "the vault
@@ -208,6 +248,10 @@ DEPLOY_CMD=(
   --parameters trustedHosts="${DRUPAL_TRUSTED_HOSTS:-}"
   --parameters ipAllowList="$IP_ALLOW_LIST"
 )
+
+if [[ -n "$SITE_AUTH_CLIENT_ID" ]]; then
+  DEPLOY_CMD+=(--parameters siteAuthClientId="$SITE_AUTH_CLIENT_ID")
+fi
 
 # Platform-specific parameters. Kept out of the shared list because passing a
 # parameter a template does not declare is a hard deployment error, not a warning.

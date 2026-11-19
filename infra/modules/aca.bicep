@@ -27,6 +27,11 @@ param mysqlDatabase string
 param mysqlCollation string
 param mysqlPasswordSecretUri string
 param hashSaltSecretUri string
+param siteAuthClientId string?
+param siteAuthSecretUri string
+
+var siteAuthEnabled = siteAuthClientId != null
+var siteAuthSecretName = 'site-auth-client-secret'
 
 param appCpu string
 param appMemory string
@@ -122,6 +127,7 @@ resource privateStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: acaAppName
   location: location
+  tags: siteAuthEnabled ? { siteAuthClientId: siteAuthClientId! } : {}
   identity: {
       // SystemAssigned AS WELL AS UserAssigned, and this is load-bearing rather
       // than belt-and-braces.
@@ -190,7 +196,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       // Key Vault references, resolved at replica start with the managed
       // identity. The value is never in this template, in a parameter file, or
       // in `az containerapp show` output.
-      secrets: [
+      secrets: concat([
         {
           name: 'mysql-password'
           keyVaultUrl: mysqlPasswordSecretUri
@@ -201,7 +207,13 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: hashSaltSecretUri
           identity: managedIdentityId
         }
-      ]
+      ], siteAuthEnabled ? [
+        {
+          name: siteAuthSecretName
+          keyVaultUrl: siteAuthSecretUri
+          identity: managedIdentityId
+        }
+      ] : [])
     }
 
     template: {
@@ -303,6 +315,47 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             }
           }
         ]
+      }
+    }
+  }
+}
+
+resource siteAuth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
+  parent: app
+  name: 'current'
+  properties: {
+    platform: {
+      enabled: siteAuthEnabled
+    }
+    globalValidation: {
+      unauthenticatedClientAction: siteAuthEnabled ? 'RedirectToLoginPage' : 'AllowAnonymous'
+      redirectToProvider: siteAuthEnabled ? 'azureactivedirectory' : null
+      excludedPaths: []
+    }
+    httpSettings: {
+      requireHttps: true
+    }
+    identityProviders: siteAuthEnabled ? {
+      azureActiveDirectory: {
+        enabled: true
+        registration: {
+          clientId: siteAuthClientId!
+          clientSecretSettingName: siteAuthSecretName
+          openIdIssuer: '${environment().authentication.loginEndpoint}${subscription().tenantId}/v2.0'
+        }
+        validation: {
+          allowedAudiences: [siteAuthClientId!]
+          defaultAuthorizationPolicy: {
+            allowedApplications: [siteAuthClientId!]
+          }
+        }
+      }
+    } : null
+    login: {
+      tokenStore: { enabled: false }
+      cookieExpiration: {
+        convention: 'FixedTime'
+        timeToExpiration: '08:00:00'
       }
     }
   }

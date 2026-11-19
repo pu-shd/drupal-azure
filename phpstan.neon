@@ -5,4 +5,5 @@ parameters:
     paths:
         - tests/php
         - docker/drupal/settings.azure.php
+        - web/modules/custom/drupal_azure_sso
     tmpDir: /tmp/drupal-azure-phpstan

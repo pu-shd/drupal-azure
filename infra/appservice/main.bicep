@@ -81,6 +81,11 @@ param logRetentionDays int = 30
 @description('Provision the outbound-email Logic App and Office 365 connection. Requires one interactive consent afterwards — see docs/email.md.')
 param deployEmail bool = true
 
+@description('Entra app registration client ID for the optional site-wide sign-in gate.')
+@minLength(36)
+@maxLength(36)
+param siteAuthClientId string?
+
 
 @description('In-container cron interval in seconds: 0 (external scheduler) or at least 300.')
 @minValue(0)
@@ -236,6 +241,8 @@ module appservice '../modules/appservice.bicep' = {
     mysqlCollation: mysql.outputs.collation
     mysqlPasswordSecretUri: keyvault.outputs.mysqlPasswordSecretUri
     hashSaltSecretUri: keyvault.outputs.hashSaltSecretUri
+    siteAuthClientId: siteAuthClientId
+    siteAuthSecretUri: '${keyvault.outputs.keyVaultUri}secrets/site-auth-client-secret'
     trustedHosts: trustedHosts
     environmentName: environment
     ipAllowList: ipAllowList

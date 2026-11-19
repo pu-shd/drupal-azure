@@ -1,0 +1,6 @@
+name: Drupal Azure Entra sign-in
+type: module
+description: Uses Entra for Drupal sign-in and keeps the Drupal session independent of Azure platform authentication.
+core_version_requirement: ^11.4
+dependencies:
+  - azure_oauth_sso:azure_oauth_sso

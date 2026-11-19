@@ -326,6 +326,13 @@ if [[ "$RUN_INTEGRATION" == "yes" ]]; then
     [[ -z "$holder" ]] && pass "deploy lock released after the run" \
       || fail "deploy lock still held by '$holder'"
   fi
+
+  step "Entra sign-in and Drupal session"
+  if bash tests/shell/entra-login.sh "http://localhost:${DRUPAL_HTTP_PORT:-8080}" "$admin_upn"; then
+    pass "Entra sign-in and Drupal logout"
+  else
+    fail "Entra sign-in and Drupal logout"
+  fi
 fi
 
 ###############################################################################
