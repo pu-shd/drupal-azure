@@ -158,10 +158,12 @@ if [[ "$RUN_INTEGRATION" == "yes" ]]; then
   # ---------------------------------------------------------------------
 
   "${COMPOSE[@]}" exec -T web chmod a-w web/sites/default/settings.php
+  admin_upn='bootstrap-admin@tenant.example'
+  admin_mail='bootstrap-admin@example.org'
   install_rc=0
   "${COMPOSE[@]}" exec -T web vendor/bin/drush site:install standard \
-    --account-name=admin --account-pass=admin --site-name="Integration test" \
-    -y --no-interaction >/dev/null 2>&1 || install_rc=$?
+    --account-name="$admin_upn" --account-mail="$admin_mail" \
+    --site-name="Integration test" --yes --quiet || install_rc=$?
   "${COMPOSE[@]}" exec -T web chmod u+w web/sites/default/settings.php
 
   if (( install_rc == 0 )); then
@@ -176,6 +178,14 @@ if [[ "$RUN_INTEGRATION" == "yes" ]]; then
     fail "the installer rewrote settings.php — credentials and a hash salt are now in the working tree"
   else
     pass "settings.php was not rewritten by the installer"
+  fi
+
+  if uid_one_name=$("${COMPOSE[@]}" exec -T web vendor/bin/drush user:information --uid=1 --field=name) &&
+     uid_one_mail=$("${COMPOSE[@]}" exec -T web vendor/bin/drush user:information --uid=1 --field=mail) &&
+     [[ "$uid_one_name" == "$admin_upn" && "$uid_one_mail" == "$admin_mail" ]]; then
+    pass "UID 1 has the Entra UPN and the separate Graph mail address"
+  else
+    fail "UID 1 does not have the expected Entra account details"
   fi
 
   # -----------------------------------------------------------------------

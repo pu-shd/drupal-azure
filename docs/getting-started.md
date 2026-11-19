@@ -184,13 +184,92 @@ Watch it come up:
 ./scripts/azure-logs.sh
 ```
 
-The first boot narrates itself: waiting for the database, taking the lock, the
-pre-deploy backup, `updb` / `config:import` / `cache:rebuild`, then the version
-marker. Later boots on the same image skip all of it and start fast.
+The first boot connects to MySQL and starts the web server. With an empty
+database, install Drupal from the container shell in the next step. Once Drupal
+is installed, a restart runs the deployment tasks and records the image version.
 
 ---
 
-## 5. Verify
+## 5. Install Drupal and bootstrap the Entra admin
+
+Use this step on a new database only. For an existing site, follow the
+[migration runbook](migrating-a-site.md) to preserve its accounts and content.
+Keep the site restricted to setup operators while configuring sign-in.
+
+Get the administrator's exact `userPrincipalName` and `mail` from their Entra
+user record. The UPN becomes Drupal's username for user 1, the initial super
+admin. Use the value of `mail` for the account email, even when it differs from
+the UPN. The bundled `azure_oauth_sso` module looks up existing Drupal users by
+the `mail` value returned by Microsoft Graph. Choose an admin whose `mail` is set
+and whose UPN meets Drupal's username rules, including the 60-character limit.
+
+Open an interactive shell in the **running Drupal container**. Use the command
+for your platform from a terminal signed in to Azure.
+
+```bash
+# App Service (preview command in Azure CLI 2.90.0 or later)
+az webapp exec --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_APP_NAME"
+
+# Container Apps
+az containerapp exec --resource-group "$AZURE_RESOURCE_GROUP" \
+  --name "$AZURE_APP_NAME" --command bash
+```
+
+The Azure portal also provides an [App Service container shell](https://learn.microsoft.com/en-us/azure/app-service/configure-linux-open-ssh-session)
+and a [Container Apps console](https://learn.microsoft.com/en-us/azure/container-apps/container-console).
+
+Run the following in that shell. It uses the database settings already present
+in the container and stops if it finds any tables other than the entrypoint's
+deployment-state table. Drush generates a random local password. `--quiet`
+keeps it and the one-time login URL out of the command output.
+
+```bash
+(
+  set -euo pipefail
+  cd /var/www/html
+
+  table_count=$(vendor/bin/drush sql:query --extra=--skip-column-names \
+    "SELECT COUNT(*) FROM information_schema.tables
+     WHERE table_schema = DATABASE() AND table_name <> 'azure_deploy_state'")
+  if [[ "$table_count" != 0 ]]; then
+    printf 'Installation requires a new database with no site tables.\n' >&2
+    exit 1
+  fi
+
+  read -rsp 'Initial administrator Entra userPrincipalName: ' admin_upn
+  printf '\n'
+  read -rsp 'Initial administrator Microsoft Graph mail: ' admin_mail
+  printf '\n'
+  read -rp 'Drupal site name: ' site_name
+  if [[ -z "$admin_upn" || -z "$admin_mail" || -z "$site_name" ]]; then
+    printf 'Enter all three values to continue.\n' >&2
+    exit 1
+  fi
+
+  chmod a-w web/sites/default/settings.php
+  if ! vendor/bin/drush site:install standard --yes --quiet \
+    --account-name="$admin_upn" --account-mail="$admin_mail" --site-name="$site_name"; then
+    printf 'Drupal installation failed. Check the database state before retrying.\n' >&2
+    exit 1
+  fi
+
+  if [[ "$(vendor/bin/drush user:information --uid=1 --field=name)" != "$admin_upn" ||
+        "$(vendor/bin/drush user:information --uid=1 --field=mail)" != "$admin_mail" ]]; then
+    printf 'Drupal user 1 does not match the requested Entra account.\n' >&2
+    exit 1
+  fi
+  printf 'Drupal installed and the initial super admin verified.\n'
+)
+```
+
+Restart the app or active revision, then check its logs. Complete the Entra app
+registration and verify the initial admin sign-in before opening the site to
+users. [Entra app registration](authentication.md#setting-up-the-app-registration)
+· [Verify the initial admin sign-in](authentication.md#verify-the-initial-admin-sign-in)
+
+---
+
+## 6. Verify
 
 ```bash
 HOST=$(az webapp show -n "$AZURE_APP_NAME" -g "$AZURE_RESOURCE_GROUP" \
@@ -211,7 +290,7 @@ outside it. That is the check being honest rather than broken.
 
 ---
 
-## 6. Finish outbound email
+## 7. Finish outbound email
 
 The Logic App and Office 365 connection were created in step 3. Two things
 remain, one of which needs a human:
@@ -235,7 +314,7 @@ every message and delivers none, with no error anywhere — so the first sign of
 trouble is a user who cannot reset their password. Details in
 **[Outbound email](email.md)**.
 
-## 7. Hand the deploys to CI
+## 8. Hand the deploys to CI
 
 Set up OIDC federation — no stored credentials — following
 **[GitHub Actions](github-actions.md)**. After that, a push to `main` builds,

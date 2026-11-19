@@ -178,6 +178,38 @@ A custom-domain cutover therefore needs the redirect URI added **before** the
 domain goes live, or the first login on the new hostname fails with a redirect-URI
 mismatch. Add the domain to `DRUPAL_TRUSTED_HOSTS` at the same time.
 
+### Verify the initial admin sign-in
+
+After [installing Drupal](getting-started.md#5-install-drupal-and-bootstrap-the-entra-admin),
+enable `azure_oauth_sso` and `genpass` from the Drupal container shell. Set the
+field mapping so Drupal's username and email track the two Graph fields.
+
+```bash
+vendor/bin/drush pm:enable azure_oauth_sso genpass --yes
+vendor/bin/drush config:set azure_oauth_sso.fields_mapping custom_attr_table.name userPrincipalName --yes
+vendor/bin/drush config:set azure_oauth_sso.fields_mapping custom_attr_table.mail mail --yes
+```
+
+Configure the module's `azure_oauth_sso.settings` with your tenant ID
+(`ad_tenant`) and client ID (`client_id`). In the site's settings overlay,
+override `$config['azure_oauth_sso.settings']['client_secret']` with the value
+of its Key Vault-backed environment variable.
+
+During setup, set **Assignment required?** to **Yes** on the Entra enterprise
+application, assign the intended administrator, and arrange admin consent for
+the required Graph permissions. [Restrict an Entra application to assigned users](https://learn.microsoft.com/en-us/entra/identity-platform/howto-restrict-your-app-to-a-set-of-users)
+
+In a private browser session, open `/oauth/login` and sign in with the specified
+Entra UPN. Open `/user` and confirm it resolves to `/user/1`, then verify access
+to `/admin/people`. If a different Drupal account opens, check the Graph `mail`
+value and the Drupal field mapping before granting any roles. Keep local
+password login and password reset unavailable to site users.
+
+The UPN is the Drupal username. The bundled module matches accounts by `mail`.
+For durable privileged account binding, use an SSO integration that maps the
+validated Entra tenant ID and user object ID to the Drupal account. [Microsoft
+guidance on validating identity claims](https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation)
+
 ---
 
 ## See also
