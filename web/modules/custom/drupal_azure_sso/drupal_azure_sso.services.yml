@@ -1,0 +1,5 @@
+services:
+  drupal_azure_sso.routes:
+    class: Drupal\drupal_azure_sso\Routing\LoginRoutes
+    tags:
+      - { name: event_subscriber }

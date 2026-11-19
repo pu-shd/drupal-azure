@@ -5,12 +5,9 @@
 Not to be confused with **[GitHub Actions](github-actions.md)**, which is about
 how *CI* authenticates to Azure.
 
-Every deployment from this template is **Entra ID only**. There are no working
-local passwords: account 1 exists because Drupal requires it, and every other
-account authenticates through Entra.
-
-That is a deliberate constraint, not a default, and it changes three things about
-how the site is configured.
+Drupal sign-in uses Entra ID once the site completes the authentication setup.
+Visitors can browse public content without signing in. Enable the optional
+Azure Entra gate to require a sign-in before any request reaches Drupal.
 
 ---
 
@@ -18,6 +15,7 @@ how the site is configured.
 
 | Module | Source | Role |
 |---|---|---|
+| `drupal_azure_sso` | included | Redirects Drupal sign-in to Entra, disables core password login and reset, and keeps Drupal logout local |
 | `drupal/azure_oauth_sso` | contrib, Composer | The OAuth login route. Redirects to Entra, consumes the callback, maps the returning identity to a Drupal account |
 | `drupal/externalauth` | contrib, Composer (dependency) | The account↔external-identity mapping table. What makes "this Entra object is this Drupal user" durable |
 | `drupal/genpass` | contrib, Composer | Generates a random password on every account, and hides the field |
@@ -59,9 +57,9 @@ Without `genpass`, three things go wrong, and none of them announces itself:
   lets someone set a local password and bypass Entra entirely, which quietly
   undoes the "Entra only" property the deployment is built on.
 
-`genpass` closes the first two by generating a strong random value and hiding the
-field. Close the third in site configuration by removing the "reset password"
-route from anonymous users, and point `/user/login` at `/oauth/login`.
+`genpass` generates a strong random value and hides the password field.
+The template's `drupal_azure_sso` module redirects `/user/login` to
+`/oauth/login` and disables core password login, reset and public registration.
 
 ---
 
@@ -91,38 +89,50 @@ about which hosts are *refused*.
 
 ---
 
-## Two integration shapes, and which to use
+## Optional site-wide Entra gate
 
-There are two ways to put Entra in front of a Drupal container on Azure, and the
-choice is not cosmetic.
+App Service and Container Apps support Azure platform authentication in front of
+Drupal. The gate is off by default. Drupal still controls permissions and
+account mapping through its own OAuth sign-in. IP restrictions apply in both
+modes.
 
-### Platform authentication at the gateway ("Easy Auth")
+With the gate on, a visitor with a valid sign-in from the deployment's Entra
+tenant can reach the site. Azure checks requests for pages, assets, and uploaded
+files. Drupal treats that visitor as anonymous until they choose **Log in** and
+complete Drupal's OAuth flow. The browser may reuse its Microsoft sign-in,
+so the second flow may complete without a prompt.
 
-The platform authenticates the request before it reaches the container and
-injects `X-MS-CLIENT-PRINCIPAL-*` headers. A small module reads those headers and
-opens a Drupal session.
+**Log out** ends the Drupal session. The visitor can still browse pages available
+to anonymous Drupal users while the eight-hour Azure gate session lasts. To
+leave both sessions, log out of Drupal first and then visit `/.auth/logout`.
 
-- **For:** nothing unauthenticated ever reaches PHP, which is a genuine
-  reduction in attack surface. No OAuth code in the application at all.
-- **Against:** the container cannot be developed or tested locally the same way,
-  because those headers only exist in production — so the login path is dormant
-  in every other environment, which is precisely the path you most want to
-  exercise. Any header-trusting module must also be certain the headers cannot be
-  spoofed, which depends on the gateway being impossible to bypass.
+### Enable or disable the gate
 
-### In-application OAuth (what this template uses)
+1. Create a separate, single-tenant Entra app registration for the gate in the
+   Azure subscription's tenant. Enable ID token issuance. Register
+   `https://<hostname>/.auth/login/aad/callback` as a **Web** redirect URI for
+   each hostname people use. Leave user assignment optional for access by any
+   user in that tenant. Keep Drupal's app registration and `/oauth/login` callback.
+2. Create a client secret for the gate registration. In the deployment Key
+   Vault, save it as `site-auth-client-secret`. On a new deployment that must
+   stay private, provision the infrastructure with an ingress allowlist first.
+   Enable the gate before bringing the site online or widening ingress access.
+3. Set `SITE_AUTH_CLIENT_ID` to the gate registration's application client ID.
+   Preview the change with `./scripts/azure-up.sh --dry-run`, then apply it with
+   `./scripts/azure-up.sh`. Later runs of the script reuse that registration if
+   the variable is unset. To disable the gate, run
+   `SITE_AUTH_CLIENT_ID='' ./scripts/azure-up.sh`. Image-only rollouts preserve
+   the Azure authentication settings.
+4. From a private browser session on a network permitted by ingress, check the
+   home page and a direct static asset URL. Both should require Entra sign-in.
+   Sign in to Azure, check that Drupal still shows **Log in**, then sign in to
+   Drupal. Log out and check that the Drupal session ends while the gate session
+   still allows public pages to load.
 
-Drupal owns the login route and performs the OAuth exchange itself.
-
-- **For:** one code path in every environment. Roles, account mapping and the
-  authorisation decision live in Drupal's own configuration, where they can be
-  exported and reviewed.
-- **Against:** anonymous requests do reach PHP, so the ingress allow-list and
-  Drupal's own permissions are both doing real work.
-
-Both live deployments this template draws on converged on the second, after
-starting with the first — the deciding factor was that a header-driven login path
-which cannot be exercised outside production is a path nobody can safely change.
+App Service CI rollouts on gated sites use Azure CLI 2.90.0 or later to verify
+Drupal inside the container. Azure uses its internal probes on both hosting
+platforms. [App Service authentication](https://learn.microsoft.com/en-us/azure/app-service/app-service-authentication-overview)
+· [Container Apps authentication](https://learn.microsoft.com/en-us/azure/container-apps/authentication)
 
 ---
 
@@ -181,11 +191,12 @@ mismatch. Add the domain to `DRUPAL_TRUSTED_HOSTS` at the same time.
 ### Verify the initial admin sign-in
 
 After [installing Drupal](getting-started.md#5-install-drupal-and-bootstrap-the-entra-admin),
-enable `azure_oauth_sso` and `genpass` from the Drupal container shell. Set the
+enable `drupal_azure_sso` and `genpass` from the Drupal container shell. The
+first module enables `azure_oauth_sso` as a dependency. Set the
 field mapping so Drupal's username and email track the two Graph fields.
 
 ```bash
-vendor/bin/drush pm:enable azure_oauth_sso genpass --yes
+vendor/bin/drush pm:enable drupal_azure_sso genpass --yes
 vendor/bin/drush config:set azure_oauth_sso.fields_mapping custom_attr_table.name userPrincipalName --yes
 vendor/bin/drush config:set azure_oauth_sso.fields_mapping custom_attr_table.mail mail --yes
 ```
@@ -202,8 +213,7 @@ the required Graph permissions. [Restrict an Entra application to assigned users
 In a private browser session, open `/oauth/login` and sign in with the specified
 Entra UPN. Open `/user` and confirm it resolves to `/user/1`, then verify access
 to `/admin/people`. If a different Drupal account opens, check the Graph `mail`
-value and the Drupal field mapping before granting any roles. Keep local
-password login and password reset unavailable to site users.
+value and the Drupal field mapping before granting any roles.
 
 The UPN is the Drupal username. The bundled module matches accounts by `mail`.
 For durable privileged account binding, use an SSO integration that maps the

@@ -46,6 +46,11 @@ param mysqlDatabase string
 param mysqlCollation string
 param mysqlPasswordSecretUri string
 param hashSaltSecretUri string
+param siteAuthClientId string?
+param siteAuthSecretUri string
+
+var siteAuthEnabled = siteAuthClientId != null
+var siteAuthSecretSetting = 'SITE_AUTH_CLIENT_SECRET'
 
 param trustedHosts string = ''
 param environmentName string = 'prod'
@@ -92,6 +97,7 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
 resource app 'Microsoft.Web/sites@2023-12-01' = {
   name: appName
   location: location
+  tags: siteAuthEnabled ? { siteAuthClientId: siteAuthClientId! } : {}
   kind: 'app,linux,container'
   identity: {
       // SystemAssigned AS WELL AS UserAssigned, and this is load-bearing rather
@@ -116,6 +122,7 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
+    keyVaultReferenceIdentity: managedIdentityId
     // Regional VNet integration: outbound traffic from the app enters the VNet,
     // which is what lets it reach a MySQL server that has no public endpoint.
     virtualNetworkSubnetId: appSubnetId
@@ -166,7 +173,7 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       // the operational tooling depends on reaching it. Kept separate on purpose.
       scmIpSecurityRestrictionsUseMain: false
 
-      appSettings: [
+      appSettings: concat([
         // -------------------------------------------------------------------
         // /home is App Service's persistent, instance-shared file share. This
         // setting is what mounts it into a custom container, and without it
@@ -199,7 +206,9 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
         // takes the paths from the environment either way.
         { name: 'DRUPAL_BACKUP_DIR', value: '/home/deploy-backups' }
         { name: 'DRUPAL_BOOT_RESULT', value: '/home/boot-result.json' }
-      ]
+      ], siteAuthEnabled ? [
+        { name: siteAuthSecretSetting, value: '@Microsoft.KeyVault(SecretUri=${siteAuthSecretUri})' }
+      ] : [])
 
       // -------------------------------------------------------------------
       // Azure Files mounts for the two Drupal file directories.
@@ -225,6 +234,49 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
           accessKey: storageAccountKey
           mountPath: '/var/www/html/private'
         }
+      }
+    }
+  }
+}
+
+resource siteAuth 'Microsoft.Web/sites/config@2023-12-01' = {
+  parent: app
+  name: 'authsettingsV2'
+  properties: {
+    platform: {
+      enabled: siteAuthEnabled
+      runtimeVersion: '~1'
+    }
+    globalValidation: {
+      requireAuthentication: siteAuthEnabled
+      unauthenticatedClientAction: siteAuthEnabled ? 'RedirectToLoginPage' : 'AllowAnonymous'
+      redirectToProvider: siteAuthEnabled ? 'azureactivedirectory' : null
+      excludedPaths: []
+    }
+    httpSettings: {
+      requireHttps: true
+    }
+    identityProviders: siteAuthEnabled ? {
+      azureActiveDirectory: {
+        enabled: true
+        registration: {
+          clientId: siteAuthClientId!
+          clientSecretSettingName: siteAuthSecretSetting
+          openIdIssuer: '${environment().authentication.loginEndpoint}${subscription().tenantId}/v2.0'
+        }
+        validation: {
+          allowedAudiences: [siteAuthClientId!]
+          defaultAuthorizationPolicy: {
+            allowedApplications: [siteAuthClientId!]
+          }
+        }
+      }
+    } : null
+    login: {
+      tokenStore: { enabled: false }
+      cookieExpiration: {
+        convention: 'FixedTime'
+        timeToExpiration: '08:00:00'
       }
     }
   }

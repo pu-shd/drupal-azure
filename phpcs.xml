@@ -4,6 +4,7 @@
   <file>tests/php</file>
   <file>docker/drupal/settings.azure.php</file>
   <file>web/sites/default/settings.php</file>
+  <file>web/modules/custom/drupal_azure_sso</file>
   <rule ref="Generic.PHP.Syntax"/>
   <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
   <rule ref="Squiz.WhiteSpace.SuperfluousWhitespace"/>

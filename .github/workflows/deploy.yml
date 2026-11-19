@@ -249,6 +249,18 @@ jobs:
           echo "image=$current" >> "$GITHUB_OUTPUT"
           echo "Currently deployed: $current"
 
+      - name: Check whether App Service requires Entra sign-in
+        id: site-auth
+        run: |
+          set -euo pipefail
+          site_id=$(az webapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --query id -o tsv)
+          gated=$(az rest --method get --url "$site_id/config/authsettingsV2?api-version=2023-12-01" \
+            --query 'properties.platform.enabled && properties.globalValidation.requireAuthentication' -o tsv)
+          if [[ "$gated" == true ]]; then
+            az webapp exec --help >/dev/null
+          fi
+          echo "gated=$gated" >> "$GITHUB_OUTPUT"
+
       - name: Point the app at the new image
         run: |
           az webapp config container set \
@@ -257,6 +269,10 @@ jobs:
             --output none
 
       - name: Restart and wait for the boot to finish
+        id: wait
+        env:
+          SITE_AUTH: ${{ steps.site-auth.outputs.gated }}
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: |
           set -euo pipefail
           # On B1 there is no warm swap target, so this restart IS the downtime
@@ -267,6 +283,28 @@ jobs:
           # Upgrading to S1 and swapping a warmed staging slot is how to remove
           # the window. See docs/choosing-a-platform.md.
           az webapp restart --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --output none
+
+          if [[ "$SITE_AUTH" == true ]]; then
+            [[ "$IMAGE_TAG" =~ ^[[:alnum:]_][[:alnum:]_.-]{0,127}$ ]]
+            probe_id="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            marker="https://${APP_NAME}.scm.azurewebsites.net/api/vfs/home/drupal-probe-$probe_id"
+            token=$(az account get-access-token --query accessToken -o tsv)
+            deadline=$(( SECONDS + 1200 ))
+            while (( SECONDS < deadline )); do
+              if [[ "$(curl -fsS --max-time 20 -H "Authorization: Bearer $token" "$marker" 2>/dev/null)" == ready ]]; then
+                curl -fsS --max-time 20 -X DELETE -H "Authorization: Bearer $token" -H 'If-Match: *' "$marker" >/dev/null \
+                  || echo "::warning::Could not remove the completed probe marker."
+                echo "Drupal served a healthy page from the expected image inside App Service."
+                exit 0
+              fi
+              az webapp exec --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --mode execute \
+                --command "bash /var/www/html/scripts/appservice-probe.sh $probe_id $IMAGE_TAG" \
+                --output none 2>/dev/null || true
+              sleep 15
+            done
+            echo "::error::The expected image did not pass the internal Drupal smoke test."
+            exit 1
+          fi
 
           host=$(az webapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
             --query defaultHostName -o tsv)
@@ -283,6 +321,7 @@ jobs:
 
       - name: Verify
         id: verify
+        if: steps.site-auth.outputs.gated != 'true'
         run: |
           host=$(az webapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
             --query defaultHostName -o tsv)
@@ -308,7 +347,9 @@ jobs:
             | python3 -m json.tool || echo "(no boot result yet)"
 
       - name: Roll back if verification failed
-        if: steps.verify.outputs.rc != '0' && steps.before.outputs.image != ''
+        if: >-
+          !cancelled() && steps.before.outputs.image != '' &&
+          (steps.wait.outcome == 'failure' || (steps.verify.outcome == 'success' && steps.verify.outputs.rc != '0'))
         run: |
           echo "::warning::Repointing at ${{ steps.before.outputs.image }}"
           az webapp config container set \
@@ -318,7 +359,7 @@ jobs:
           exit 1
 
       - name: Fail the run if verification failed
-        if: steps.verify.outputs.rc != '0'
+        if: steps.verify.outcome == 'success' && steps.verify.outputs.rc != '0'
         run: exit 1
 
   rollout-containerapps:

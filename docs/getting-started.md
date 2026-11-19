@@ -118,6 +118,10 @@ storage account name. The script checks before provisioning anything.
 
 Everything tunable is in **[Configuration](configuration.md)**.
 
+If this site requires an Entra sign-in to browse, follow the gate setup before
+making the first image available to visitors.
+[Optional site-wide Entra gate](authentication.md#optional-site-wide-entra-gate)
+
 ### Capture the names it created
 
 The script prints the deployment outputs at the end. Set them in your shell — the
@@ -285,8 +289,8 @@ Three outcomes, and the third one matters:
 | **fail** | The application answered and something is wrong |
 | **inconclusive** | The request never reached the application. **Not a pass** — nothing was verified |
 
-You will see *inconclusive* if you set an IP allow-list and are calling from
-outside it. That is the check being honest rather than broken.
+An IP allowlist or the optional Entra gate can intercept the probe. Verify the
+site from an allowed network and an authenticated browser when applicable.
 
 ---
 

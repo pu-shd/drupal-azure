@@ -78,6 +78,10 @@ TIMEOUT="${VERIFY_TIMEOUT:-30}"
 # building and the CSRF/session path, which is where a bad hash salt or a broken
 # reverse-proxy configuration shows up and the front page does not.
 ENDPOINTS_CSV="/,/user/login"
+CONNECT_ARGS=()
+if [[ -n "${VERIFY_CONNECT_TO:-}" ]]; then
+  CONNECT_ARGS=(--noproxy '*' --connect-to "$VERIFY_CONNECT_TO")
+fi
 
 usage() { sed -n '2,60p' "$0"; }
 
@@ -150,7 +154,7 @@ for spec in "${ENDPOINT_SPECS[@]}"; do
     # an unreachable host from a merely slow one, and reporting a cold start as
     # "connection error" names the wrong cause.
     set +e
-    code=$(curl -sS --max-time "$TIMEOUT" -D "$WORK/h" -o "$WORK/b" -w '%{http_code}' \
+    code=$(curl -sS "${CONNECT_ARGS[@]+"${CONNECT_ARGS[@]}"}" --max-time "$TIMEOUT" -D "$WORK/h" -o "$WORK/b" -w '%{http_code}' \
              -H 'Accept: text/html' -H 'User-Agent: verify-site.sh' "$url" 2>"$WORK/e")
     curl_rc=$?
     set -e
@@ -182,6 +186,11 @@ for spec in "${ENDPOINT_SPECS[@]}"; do
     elif (( EXPECT_BLOCK )); then
       outcome=fail
       reason="--expect-block was given, but the application answered: the ingress allow-list is not refusing this request"
+
+    elif [[ "$spec" == /user/login && "$code" == 302 && "$EXPECT_EXPLICIT" == 0 ]] \
+      && grep -qiE '^location: /([[:alnum:]_-]+/)?oauth/login[[:space:]]*$' "$WORK/h"; then
+      outcome=pass
+      reason="Drupal redirected sign-in to its Entra OAuth route"
 
     elif ! status_expected "$code" "$want"; then
       outcome=fail

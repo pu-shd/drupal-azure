@@ -42,6 +42,7 @@ password, see [Secrets](secrets.md#reading-a-secret-you-actually-need).
 | `AZURE_ENVIRONMENT` | `prod` | `dev` \| `staging` \| `prod`. Part of the resource group name |
 | `AZURE_SUBSCRIPTION` | *(prompted)* | |
 | `AZURE_IP_ALLOW_LIST` | *(open)* | JSON array of allow rules. See [Restricting access](#restricting-access) below |
+| `SITE_AUTH_CLIENT_ID` | *(empty, gate off)* | Application client ID of the Azure Entra gate registration. [Gate setup](authentication.md#optional-site-wide-entra-gate) |
 | `DRUPAL_TRUSTED_HOSTS` | *(empty)* | Comma-separated custom domains |
 | `APP_SERVICE_SKU` | `B1` | App Service only. `S1` adds deployment slots and autoscale |
 | `MIN_REPLICAS` / `MAX_REPLICAS` | `1` / `3` | Container Apps only |

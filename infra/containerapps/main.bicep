@@ -82,6 +82,11 @@ param logRetentionDays int = 30
 @description('Provision the outbound-email Logic App and Office 365 connection. Requires one interactive consent afterwards — see docs/email.md.')
 param deployEmail bool = true
 
+@description('Entra app registration client ID for the optional site-wide sign-in gate.')
+@minLength(36)
+@maxLength(36)
+param siteAuthClientId string?
+
 
 @description('Cron expression (UTC) for the scheduled Drupal cron job. See infra/modules/jobs.bicep for why cron is a Job rather than automated_cron.')
 param cronExpression string = '*/15 * * * *'
@@ -234,6 +239,8 @@ module aca '../modules/aca.bicep' = {
     mysqlCollation: mysql.outputs.collation
     mysqlPasswordSecretUri: keyvault.outputs.mysqlPasswordSecretUri
     hashSaltSecretUri: keyvault.outputs.hashSaltSecretUri
+    siteAuthClientId: siteAuthClientId
+    siteAuthSecretUri: '${keyvault.outputs.keyVaultUri}secrets/site-auth-client-secret'
     appCpu: appCpu
     appMemory: appMemory
     minReplicas: minReplicas

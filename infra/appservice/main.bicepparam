@@ -42,3 +42,5 @@ param cronExpression = readEnvironmentVariable('DRUPAL_CRON_EXPRESSION', '*/15 *
 param deployEmail = bool(readEnvironmentVariable('DEPLOY_EMAIL', 'true'))
 
 param cronIntervalSeconds = int(readEnvironmentVariable('DRUPAL_CRON_INTERVAL', '3600'))
+var gateClientId = readEnvironmentVariable('SITE_AUTH_CLIENT_ID', '')
+param siteAuthClientId = empty(gateClientId) ? null : gateClientId
