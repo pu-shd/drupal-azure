@@ -10,6 +10,12 @@
 #
 # This opens a PR instead, with a package-by-package diff and a security audit in
 # the body, gated on pull-request.yml. Merging it triggers the normal deploy.
+#
+# The PR is opened with GITHUB_TOKEN. GitHub holds the pull-request.yml run it
+# starts as "action_required": approve it from the PR's Checks before
+# reviewing, or the update is reviewed untested. Opening the PR needs
+# "Allow GitHub Actions to create and approve pull requests" enabled for the
+# organization and the repository.
 ###############################################################################
 
 name: Composer update
