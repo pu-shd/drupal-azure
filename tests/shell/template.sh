@@ -62,6 +62,36 @@ class TemplateTest(unittest.TestCase):
             self.assertIn('allowedApplications: [siteAuthClientId!]', hosting)
             self.assertIn('secrets/site-auth-client-secret', main)
 
+    # Lowest major version of each action whose runtime is Node 24. GitHub
+    # forces Node 20 actions onto Node 24 with a deprecation warning, and will
+    # eventually stop doing so. An action missing from this table fails the
+    # test, so a new dependency has to be checked rather than slipping in.
+    NODE24_MIN_MAJOR = {
+        'actions/checkout': 5,
+        'actions/create-github-app-token': 3,
+        'azure/login': 3,
+        'peter-evans/create-pull-request': 8,
+        'shivammathur/setup-php': 2,
+    }
+
+    def test_workflow_actions_run_on_node24(self):
+        uses = re.compile(r'^\s*(?:-\s*)?uses:\s*([\w.-]+/[\w.-]+)@v(\d+)\s*$', re.M)
+        found = 0
+        for path in sorted(pathlib.Path('.github/workflows').glob('*.yml')):
+            for action, major in uses.findall(path.read_text()):
+                found += 1
+                self.assertIn(action, self.NODE24_MIN_MAJOR, f'{path}: {action} has no known Node 24 version')
+                self.assertGreaterEqual(int(major), self.NODE24_MIN_MAJOR[action], f'{path}: {action}@v{major} runs on Node 20')
+        # A regex that stopped matching would otherwise pass vacuously.
+        self.assertGreater(found, 10)
+
+    def test_composer_update_body_stays_out_of_the_commit(self):
+        # create-pull-request commits every change in the working tree. A body
+        # file written there lands in the update PR and then on main.
+        workflow = pathlib.Path('.github/workflows/composer-update.yml').read_text()
+        self.assertIsNone(re.search(r'(?<![/\w])pr-body\.md', workflow), 'composer-update.yml writes pr-body.md inside the checkout')
+        self.assertFalse(pathlib.Path('pr-body.md').exists(), 'pr-body.md is checked in at the repository root')
+
 unittest.main(verbosity=2)
 PY
 bash tests/shell/cron.sh

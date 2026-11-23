@@ -10,6 +10,12 @@
 #
 # This opens a PR instead, with a package-by-package diff and a security audit in
 # the body, gated on pull-request.yml. Merging it triggers the normal deploy.
+#
+# The PR is opened with GITHUB_TOKEN. GitHub holds the pull-request.yml run it
+# starts as "action_required": approve it from the PR's Checks before
+# reviewing, or the update is reviewed untested. Opening the PR needs
+# "Allow GitHub Actions to create and approve pull requests" enabled for the
+# organization and the repository.
 ###############################################################################
 
 name: Composer update
@@ -34,7 +40,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -80,10 +86,13 @@ jobs:
       - name: Compose the pull request body
         run: |
           set -euo pipefail
+          # Outside the checkout: create-pull-request commits every change in
+          # the working tree, so a body file written there ends up in the PR.
+          body="$RUNNER_TEMP/pr-body.md"
           {
             echo "Automated dependency update."
             echo
-          } > pr-body.md
+          } > "$body"
 
           # Diff the lock file package-by-package. `git diff composer.lock` is
           # thousands of lines of hashes; this is the part a reviewer can act on.
@@ -113,7 +122,7 @@ jobs:
             } else {
               echo "No package version changes.\n\n";
             }
-          ' >> pr-body.md
+          ' >> "$body"
 
           {
             echo "### Security audit of the new lock file"
@@ -123,17 +132,17 @@ jobs:
             # maintenance note, not a vulnerability.
             composer audit --no-interaction --abandoned=report --locked 2>&1 || true
             echo '```'
-          } >> pr-body.md
-          cat pr-body.md
+          } >> "$body"
+          cat "$body"
 
       - name: Open pull request
         id: pr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(deps): update composer dependencies"
           title: "Composer dependency update"
-          body-path: pr-body.md
+          body-path: ${{ runner.temp }}/pr-body.md
           branch: automated/composer-update
           delete-branch: true
           labels: dependencies
