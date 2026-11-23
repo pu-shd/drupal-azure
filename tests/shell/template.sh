@@ -85,6 +85,13 @@ class TemplateTest(unittest.TestCase):
         # A regex that stopped matching would otherwise pass vacuously.
         self.assertGreater(found, 10)
 
+    def test_composer_update_body_stays_out_of_the_commit(self):
+        # create-pull-request commits every change in the working tree. A body
+        # file written there lands in the update PR and then on main.
+        workflow = pathlib.Path('.github/workflows/composer-update.yml').read_text()
+        self.assertIsNone(re.search(r'(?<![/\w])pr-body\.md', workflow), 'composer-update.yml writes pr-body.md inside the checkout')
+        self.assertFalse(pathlib.Path('pr-body.md').exists(), 'pr-body.md is checked in at the repository root')
+
 unittest.main(verbosity=2)
 PY
 bash tests/shell/cron.sh
