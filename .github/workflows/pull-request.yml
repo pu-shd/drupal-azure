@@ -23,7 +23,7 @@ jobs:
     env:
       ACTIONLINT_VERSION: '1.7.7'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A pinned release binary rather than a third-party action, to keep the
       # supply-chain surface of a linting job smaller than the thing it lints.
@@ -67,7 +67,7 @@ jobs:
     name: Composer validate and audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -97,7 +97,7 @@ jobs:
     name: Production image gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Builds the real production Dockerfile and asserts the properties that can
       # be checked from outside it. See the script for what each check is for —
@@ -111,7 +111,7 @@ jobs:
     name: Boot against MySQL 8
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Nothing else in this pipeline touches a database, so without this job a
       # green CI says nothing about the thing the site actually runs on. This
@@ -125,6 +125,6 @@ jobs:
     name: Container unit, shell, format and type checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run the test image
         run: ./scripts/test-container.sh
