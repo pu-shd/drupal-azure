@@ -294,6 +294,21 @@ out = json.load(sys.stdin)['properties']['outputs']
 print((out.get('appName') or out.get('containerAppName') or {}).get('value',''))" 2>/dev/null || true)
   RG=$(echo "$OUTPUT" | python3 -c "import sys,json;print(json.load(sys.stdin)['properties']['outputs']['resourceGroupName']['value'])" 2>/dev/null || true)
 
+  # Read back what Azure stored for the Entra gate, field by field, rather than
+  # trusting that the deployment applied it (scripts/site-auth-check.sh).
+  if [[ -n "$APP" && -n "$RG" ]]; then
+    step "Reading back the Entra gate"
+    gate_expect=(--expect-off)
+    [[ -n "$SITE_AUTH_CLIENT_ID" ]] && gate_expect=(--expect-client-id "$SITE_AUTH_CLIENT_ID")
+    AZURE_RESOURCE_GROUP="$RG" AZURE_APP_NAME="$APP" AZURE_PLATFORM="$AZURE_PLATFORM" \
+      "$SCRIPT_DIR/site-auth-check.sh" "${gate_expect[@]}" \
+      || { err "The Entra gate does not match what was deployed. See above."; exit 1; }
+    if [[ -n "$SITE_AUTH_CLIENT_ID" ]]; then
+      info "Record the gate secret's expiry for the daily reminder, if you have not:"
+      info "  ./scripts/setup-site-gate.sh --set-repo-vars"
+    fi
+  fi
+
   echo ""
   echo -e "${YELLOW}${BOLD}Next: build and push the first image.${NC}"
   echo ""

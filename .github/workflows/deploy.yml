@@ -362,6 +362,22 @@ jobs:
         if: steps.verify.outcome == 'success' && steps.verify.outputs.rc != '0'
         run: exit 1
 
+      # Last, so a mismatch fails the run without rolling back a good image:
+      # the image is not what is wrong. Expectation from the app's
+      # siteAuthClientId tag, so a portal change to the gate shows up here.
+      - name: Read back the Entra gate
+        env:
+          AZURE_RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}
+          AZURE_APP_NAME: ${{ env.APP_NAME }}
+          AZURE_PLATFORM: appservice
+          SITE_AUTH_SECRET_EXPIRES: ${{ vars.SITE_AUTH_SECRET_EXPIRES }}
+        run: |
+          set -euo pipefail
+          ./scripts/site-auth-check.sh | tee "$RUNNER_TEMP/site-auth"
+          if grep -q 'gate is on' "$RUNNER_TEMP/site-auth" && [ -z "$SITE_AUTH_SECRET_EXPIRES" ]; then
+            echo "::warning::The Entra gate is on but SITE_AUTH_SECRET_EXPIRES is not set, so nothing will remind anyone before its client secret expires. Run ./scripts/setup-site-gate.sh --set-repo-vars."
+          fi
+
   rollout-containerapps:
     name: Gated rollout (Container Apps)
     needs: [preflight, build]
@@ -545,3 +561,19 @@ jobs:
                 az containerapp revision deactivate --name "$APP_NAME" \
                   --resource-group "$RESOURCE_GROUP" --revision "$old" --only-show-errors || true
               done
+
+      # Last, so a mismatch fails the run without rolling back a good image:
+      # the image is not what is wrong. Expectation from the app's
+      # siteAuthClientId tag, so a portal change to the gate shows up here.
+      - name: Read back the Entra gate
+        env:
+          AZURE_RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}
+          AZURE_APP_NAME: ${{ env.APP_NAME }}
+          AZURE_PLATFORM: containerapps
+          SITE_AUTH_SECRET_EXPIRES: ${{ vars.SITE_AUTH_SECRET_EXPIRES }}
+        run: |
+          set -euo pipefail
+          ./scripts/site-auth-check.sh | tee "$RUNNER_TEMP/site-auth"
+          if grep -q 'gate is on' "$RUNNER_TEMP/site-auth" && [ -z "$SITE_AUTH_SECRET_EXPIRES" ]; then
+            echo "::warning::The Entra gate is on but SITE_AUTH_SECRET_EXPIRES is not set, so nothing will remind anyone before its client secret expires. Run ./scripts/setup-site-gate.sh --set-repo-vars."
+          fi
