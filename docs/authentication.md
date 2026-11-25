@@ -108,26 +108,61 @@ leave both sessions, log out of Drupal first and then visit `/.auth/logout`.
 
 ### Enable or disable the gate
 
-1. Create a separate, single-tenant Entra app registration for the gate in the
-   Azure subscription's tenant. Enable ID token issuance. Register
-   `https://<hostname>/.auth/login/aad/callback` as a **Web** redirect URI for
-   each hostname people use. Leave user assignment optional for access by any
-   user in that tenant. Keep Drupal's app registration and `/oauth/login` callback.
-2. Create a client secret for the gate registration. In the deployment Key
-   Vault, save it as `site-auth-client-secret`. On a new deployment that must
-   stay private, provision the infrastructure with an ingress allowlist first.
-   Enable the gate before bringing the site online or widening ingress access.
-3. Set `SITE_AUTH_CLIENT_ID` to the gate registration's application client ID.
-   Preview the change with `./scripts/azure-up.sh --dry-run`, then apply it with
-   `./scripts/azure-up.sh`. Later runs of the script reuse that registration if
-   the variable is unset. To disable the gate, run
-   `SITE_AUTH_CLIENT_ID='' ./scripts/azure-up.sh`. Image-only rollouts preserve
+1. Create the gate's own app registration and its secret:
+   `./scripts/setup-site-gate.sh --set-repo-vars` (preview with `--dry-run`).
+   It finds or creates `<app>-site-gate`. The registration is single tenant,
+   has no API permissions and issues ID tokens. It has a **Web** redirect URI
+   `https://<hostname>/.auth/login/aad/callback` for each of the app's
+   hostnames; set `GATE_HOSTS` to list them yourself. The script writes a
+   one-year client secret straight into the deployment Key Vault as
+   `site-auth-client-secret` and never prints it. With `--set-repo-vars` it
+   records the secret's expiry in the repository variable
+   `SITE_AUTH_SECRET_EXPIRES`. Run it as someone who can create app
+   registrations and set Key Vault secrets. Leave user assignment optional
+   for access by any user in the tenant. Keep Drupal's own app registration
+   and its `/oauth/login` callback. On a new deployment that must stay
+   private, provision the infrastructure with an ingress allowlist first, and
+   enable the gate before you bring the site online or widen ingress access.
+2. Run `SITE_AUTH_CLIENT_ID=<printed client ID> ./scripts/azure-up.sh`
+   (preview with `--dry-run`). Later runs reuse that registration if the
+   variable is unset. To disable the gate, run
+   `SITE_AUTH_CLIENT_ID='' ./scripts/azure-up.sh`. Image-only rollouts keep
    the Azure authentication settings.
-4. From a private browser session on a network permitted by ingress, check the
-   home page and a direct static asset URL. Both should require Entra sign-in.
-   Sign in to Azure, check that Drupal still shows **Log in**, then sign in to
-   Drupal. Log out and check that the Drupal session ends while the gate session
-   still allows public pages to load.
+3. `azure-up.sh` and every CI rollout then **read the gate back**
+   (`scripts/site-auth-check.sh`). They check that it redirects unauthenticated
+   requests, excludes no paths, uses the expected client and Key Vault secret,
+   allows only the gate's own client and keeps no token store. They take the
+   expectation from the app's `siteAuthClientId` tag, so a change made in the
+   portal fails the next rollout. The image is not rolled back, because the
+   image is not what is wrong.
+4. From a private browser session on a network that ingress permits, check
+   the home page and a direct static asset URL. Both should require Entra
+   sign-in. Sign in to Azure, check that Drupal still shows **Log in**, then
+   sign in to Drupal. Log out and check that the Drupal session ends while
+   the gate session still allows public pages to load.
+
+### When the gate's secret expires
+
+The secret lasts a year. When it lapses, nobody can sign in. The **Credential
+Expiry Reminder** workflow runs daily and reads `SITE_AUTH_SECRET_EXPIRES`:
+
+- 30 days ahead, it opens an issue labelled `credential-expiry` and refreshes
+  it each day.
+- When the secret has expired, it turns the run red.
+- After a rotation records a later date, it closes the issue.
+
+It needs no Azure access. Reading the date from Entra would need a Microsoft
+Graph permission with admin consent, so the date is recorded when the secret
+is made. While the gate is on and the variable is unset, every rollout warns.
+
+To rotate:
+
+1. Run `./scripts/setup-site-gate.sh --rotate --set-repo-vars`.
+2. Restart the app so that it reads the new secret.
+3. Check that sign-in works.
+4. Delete the old credential from the registration
+   (`az ad app credential list --id <client ID>`, then
+   `az ad app credential delete`).
 
 App Service CI rollouts on gated sites use Azure CLI 2.90.0 or later to verify
 Drupal inside the container. Azure uses its internal probes on both hosting

@@ -38,6 +38,7 @@ with the vault or your access to it, and it says so. See
 | `rotate-secrets.sh` | `--list`, `--rotate db\|salt` |
 | `migrate.sh` | Existing site → Azure. **`--audit` first, always** |
 | `setup-email.sh` | Finish wiring outbound email. `--status`, `--test <addr>` |
+| `setup-site-gate.sh` | Entra gate registration and secret; `--rotate`, `--set-repo-vars` records its expiry. `--dry-run` |
 
 ## Called by other things
 
@@ -47,6 +48,8 @@ You will rarely run these directly; the workflows and the Dockerfile do.
 |---|---|
 | `verify-site.sh` | Smoke test. Exits 0 pass, 1 fail, **2 inconclusive** |
 | `verify-production-image.sh` | Structural gate on the built image |
+| `site-auth-check.sh` | Reads the Entra gate back and checks it (after `azure-up.sh` and each rollout) |
+| `check-credential-expiry.sh` | Opens, refreshes or closes the `credential-expiry` issue (Credential Expiry Reminder workflow) |
 | `composer-retry.sh` | Bounded retries around composer, for transient registry failures |
 | `lib/prompt.sh` | Interactive prompts that skip when a value is already set |
 | `lib/platform.sh` | App Service / Container Apps abstraction |
