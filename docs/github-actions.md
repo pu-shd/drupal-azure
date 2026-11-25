@@ -113,6 +113,8 @@ compromised workflow cannot exfiltrate the database password or the hash salt.
 | `AZURE_APP_NAME` | the web app or container app name |
 | `AZURE_PLATFORM` | `appservice` (default) or `containerapps` |
 | `AZURE_IMAGE_NAME` | `drupal` (optional; defaults to `drupal`) |
+| `SITE_AUTH_SECRET_EXPIRES` | Entra gate only; set by `setup-site-gate.sh --set-repo-vars`. See [When the gate's secret expires](authentication.md#when-the-gates-secret-expires) |
+| `DRUPAL_SSO_SECRET_EXPIRES` | optional; the end date of Drupal's own client secret. See [Renewing Drupal's client secret](authentication.md#renewing-drupals-client-secret) |
 
 Variables rather than secrets for the names, deliberately: masking a resource
 group name in the logs makes every failure harder to read and protects nothing.
@@ -131,6 +133,7 @@ every fifteen minutes.
 | `deploy.yml` | a `preflight` job checking all three variables and `AZURE_CLIENT_ID` |
 | `drupal-cron.yml` | `vars.AZURE_APP_NAME` |
 | `scheduled-backup.yml` | `vars.AZURE_RESOURCE_GROUP` |
+| `credential-expiry.yml` | `vars.SITE_AUTH_SECRET_EXPIRES` or `vars.DRUPAL_SSO_SECRET_EXPIRES`; needs no Azure access |
 | `pull-request.yml`, `composer-update.yml`, `security-audit.yml` | nothing — they need no Azure access and work immediately |
 
 They start running **by themselves** once the values exist. There is nothing to
