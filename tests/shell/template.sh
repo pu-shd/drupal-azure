@@ -97,3 +97,6 @@ PY
 bash tests/shell/cron.sh
 bash tests/shell/db-probe.sh
 bash tests/shell/site-auth.sh
+bash tests/shell/site-auth-readback.sh
+bash tests/shell/credential-expiry.sh
+bash tests/shell/setup-site-gate.sh
