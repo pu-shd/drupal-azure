@@ -223,6 +223,30 @@ A custom-domain cutover therefore needs the redirect URI added **before** the
 domain goes live, or the first login on the new hostname fails with a redirect-URI
 mismatch. Add the domain to `DRUPAL_TRUSTED_HOSTS` at the same time.
 
+### Renewing Drupal's client secret
+
+Drupal's client secret expires; Entra issues them for at most two years. Use a
+registration of its own for Drupal, not the identity CI deploys with, so the
+secret grants nothing but sign-in. Renew without an outage:
+
+1. Add a new secret **alongside** the current one, so sign-in keeps working,
+   straight into a file the shell does not echo:
+   `az ad app credential reset --id <client ID> --append --display-name "drupal-sso $(date -u +%F)" --years 1 --query password -o tsv | tr -d '\n' > new-secret`
+2. Store it in the deployment Key Vault, under the name the app setting
+   references: `az keyvault secret set --vault-name <vault> --name <secret name> --file new-secret`.
+   Then delete the file.
+3. Restart the app so that it reads the new version. An unversioned Key Vault
+   reference is cached until restart. Sign in at `/oauth/login`.
+4. Record the new end date for the daily reminder:
+   `gh variable set DRUPAL_SSO_SECRET_EXPIRES --body "$(az ad app credential list --id <client ID> --query 'max_by(@, &endDateTime).endDateTime' -o tsv)"`
+5. Delete the old credential (`az ad app credential list --id <client ID>`,
+   then `az ad app credential delete --id <client ID> --key-id <old key ID>`).
+   Until then, putting the old value back undoes the renewal.
+
+With `DRUPAL_SSO_SECRET_EXPIRES` set, the **Credential Expiry Reminder**
+workflow handles it the same way as the gate secret. It opens an issue 30
+days ahead, closes it after renewal, and turns red once the secret expires.
+
 ### Verify the initial admin sign-in
 
 After [installing Drupal](getting-started.md#5-install-drupal-and-bootstrap-the-entra-admin),

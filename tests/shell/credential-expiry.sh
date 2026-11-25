@@ -72,3 +72,17 @@ reset; check 2 "$NOW" 2027-13-45x; [[ ! -s "$work/calls" ]] || { echo 'FAIL: gh 
 reset; check 2 "$NOW" 2027-11-25 --warn-days soon
 reset; STUB_FAIL='issue create' check 2 "$NOW" 2027-11-25
 echo 'PASS: bad input and a failed issue write are errors'
+
+reset; echo 42 > "$work/open"; check 0 "$NOW" never
+must grep -q 'does not expire' "$work/out"; must called 'issue close 42'
+echo 'PASS: a credential that never expires closes the issue'
+
+reset; check 1 "$NOW" 2030-01-01 --invalid 'GitHub rejects it (HTTP 401)'
+must grep -q 'is being rejected:\*\* GitHub rejects it (HTTP 401)' "$work/body"
+reset; check 2 "$NOW" 2030-01-01 --invalid ''
+echo 'PASS: a rejected credential fails whatever its date'
+
+wf=.github/workflows/credential-expiry.yml
+must grep -q 'vars.DRUPAL_SSO_SECRET_EXPIRES' "$wf"
+[[ $(grep -c "if: \${{ !cancelled() &&" "$wf") -ge 2 ]] || { echo 'FAIL: each check must run after an earlier failure' >&2; exit 1; }
+echo 'PASS: the workflow checks both secrets independently'
